@@ -13,6 +13,7 @@ import com.n26.model.TransactionRequest;
 import com.n26.model.TransactionSummary;
 import com.n26.service.TransactionService;
 
+
 @RestController
 public class TransactionController {
 	

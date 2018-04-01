@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import com.n26.model.TransactionSummary;
 
+
 @Component
 public class StatisticsBean {
 
@@ -21,7 +22,7 @@ public class StatisticsBean {
 	
 	private TransactionSummary[][] arrTransactionSummary;
 	public static long appStartTime;
-	public static int currentArrayPointer;
+	public static long[] highestValueInEachArray;
 	
 	@PostConstruct
 	public void init() {

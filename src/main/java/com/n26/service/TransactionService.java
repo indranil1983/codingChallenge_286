@@ -31,38 +31,41 @@ public class TransactionService
 
 
 	private void insertIntoArray(TransactionRequest transactionRequest) throws InvalidTimestampException {
-		if(StatisticsBean.appStartTime==0) 
-		{
-			StatisticsBean.appStartTime = new Date().getTime();
-		}
-		checkValidTransactionTime(transactionRequest.getTimestamp());
-		long diffFromFirstInsert = transactionRequest.getTimestamp() - (StatisticsBean.appStartTime);
+		long currentTimeStamp = fetchCurrentTimeStamp();
+		checkValidTransactionTime(transactionRequest.getTimestamp(),currentTimeStamp);
+		int diffFromFirstInsert = calculateDifferenceInTimeFromFirstInsert(transactionRequest.getTimestamp());		
 		int[] pointer = calculate2dArrayPointer(diffFromFirstInsert);
-		if(pointer[0]!=StatisticsBean.currentArrayPointer)
-		{
-			for(int j=0;j<60000;j++) {
-				statbean.getTransactionArray()[pointer[0]][j]=null;
-			}
-			StatisticsBean.currentArrayPointer=pointer[0];
-		}						
 		TransactionSummary objTransactionSummary = statbean.getTransactionArray()[pointer[0]][pointer[1]];
 		if(objTransactionSummary==null) {
 			objTransactionSummary = new TransactionSummary();
 		}
+		updateHighestTsValueInTransactionSummary(transactionRequest.getTimestamp(),objTransactionSummary,currentTimeStamp);
 		calculateSummaryInArray(objTransactionSummary, transactionRequest);
 		statbean.getTransactionArray()[pointer[0]][pointer[1]]=objTransactionSummary;	
 	}
 	
-	private void checkValidTransactionTime(long timestamp) throws InvalidTimestampException {
-		long currentTimeStamp = new Date().getTime();
-		long diff = currentTimeStamp - timestamp;	
-		if(diff>60000) {
-			throw new InvalidTimestampException("Input timestamp is more than 60 seconds old");
+	
+	private void updateHighestTsValueInTransactionSummary(long timeStamp,TransactionSummary objTransactionSummary,long currentTimeStamp) {
+		long currentHighestTsInSummary = objTransactionSummary.getHighestTimeStamp();
+		if((currentTimeStamp-currentHighestTsInSummary)>60000){
+			objTransactionSummary.resetAll();
+			objTransactionSummary.setHighestTimeStamp(timeStamp);
 		}
+		else if(timeStamp>currentHighestTsInSummary) {
+			objTransactionSummary.setHighestTimeStamp(timeStamp);
+		}		
 	}
+
+
+	private int calculateDifferenceInTimeFromFirstInsert(long timeStamp) {
+		long diffFromFirstInsert = timeStamp - (StatisticsBean.appStartTime);
+		return (int)diffFromFirstInsert;
+	}
+	
 	
 	private void calculateSummaryInArray(TransactionSummary objTransactionSummary,TransactionRequest transactionRequest) {
 		double currentAmount = transactionRequest.getAmount();
+		
 		double sum = objTransactionSummary.getSum()+currentAmount;
 		objTransactionSummary.setSum(sum);
 		int count = objTransactionSummary.getCount()+1;
@@ -77,7 +80,7 @@ public class TransactionService
 	
 	public TransactionSummary getStatistics() {
 		TransactionSummary finalTransactionSummary = new TransactionSummary();
-		long currentTime = 1522401727867L;//new Date().getTime();
+		long currentTime = fetchCurrentTimeStamp();
 		long diffFromFirstInsert=currentTime - (StatisticsBean.appStartTime);
 		int statisticsStartTime=(int)diffFromFirstInsert;
 		int statisticsEndTime=(int)statisticsStartTime-59999;
@@ -89,17 +92,22 @@ public class TransactionService
 			
 			if(objTrans!=null) {				
 				//calculateSummaryInArray(finalTransactionSummary, objTrans);
-				double currentSum = objTrans.getSum();
-				double sum = finalTransactionSummary.getSum()+currentSum;
-				finalTransactionSummary.setSum(sum);
-				int count = objTrans.getCount()+finalTransactionSummary.getCount();
-				finalTransactionSummary.setCount(count);				
-				if(objTrans.getMin()<finalTransactionSummary.getMin() || finalTransactionSummary.getMax()==0) {
-					finalTransactionSummary.setMin(objTrans.getMin());
+				long highestTsInSummary  = objTrans.getHighestTimeStamp();
+				if(((currentTime-highestTsInSummary)<=60000)) //in case the difference is greater than 60000, then the summary is older than a minute so discard
+				{
+					double currentSum = objTrans.getSum();
+					double sum = finalTransactionSummary.getSum()+currentSum;
+					finalTransactionSummary.setSum(sum);
+					int count = objTrans.getCount()+finalTransactionSummary.getCount();
+					finalTransactionSummary.setCount(count);				
+					if(objTrans.getMin()<finalTransactionSummary.getMin() || finalTransactionSummary.getMax()==0) {
+						finalTransactionSummary.setMin(objTrans.getMin());
+					}
+					else if(finalTransactionSummary.getMax()<objTrans.getMax() || finalTransactionSummary.getMax()==0) {
+						finalTransactionSummary.setMax(objTrans.getMax());
+					}
 				}
-				else if(finalTransactionSummary.getMax()<objTrans.getMax() || finalTransactionSummary.getMax()==0) {
-					finalTransactionSummary.setMax(objTrans.getMax());
-				}
+				
 			}
 		}
 		return finalTransactionSummary;
@@ -111,20 +119,29 @@ public class TransactionService
 		
 	}
 	
-	private int[] calculate2dArrayPointer(long diffFromFirstInsert){
+	private long fetchCurrentTimeStamp() {
+		return new Date().getTime();
+	}
+	
+	private int[] calculate2dArrayPointer(int diffFromFirstInsert){
 		
-		int intDiff=(int)diffFromFirstInsert;
-		int minute = intDiff/60000;
+		//int intDiff=(int)diffFromFirstInsert;
+		int minute = diffFromFirstInsert/60000;
 		if(minute>4) {
 			minute=minute%5;
 		}
-		int millisec=intDiff%60000;
+		int millisec=diffFromFirstInsert%60000;
 		int[] pointer = {minute,millisec};
 		
 		return pointer;
 	}
 	
-	
+	private void checkValidTransactionTime(long timestamp,long currentTimeStamp) throws InvalidTimestampException {
+		long diff = currentTimeStamp - timestamp;	
+		if(diff>60000) {
+			throw new InvalidTimestampException("Input timestamp is more than 60 seconds old");
+		}
+	}
 	
 	public void loadTestData() throws InvalidTimestampException {
 		

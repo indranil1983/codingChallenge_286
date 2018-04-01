@@ -12,6 +12,8 @@ public class TransactionSummary {
 	private int count;
 	private double max;
 	private double min;
+	private long highestTimeStamp;
+	
 	public double getSum() {
 		return sum;
 	}
@@ -48,8 +50,23 @@ public class TransactionSummary {
 	public void setMin(double min) {
 		this.min = min;
 	}
+
+	public long getHighestTimeStamp() {
+		return highestTimeStamp;
+	}
+
+	public void setHighestTimeStamp(long highestTimeStamp) {
+		this.highestTimeStamp = highestTimeStamp;
+	}
 	
-	
+	public void resetAll() {
+		sum=0;
+		avg=0;
+		min=0;
+		max=0;
+		count=0;
+		
+	}
 	
 	
 }
