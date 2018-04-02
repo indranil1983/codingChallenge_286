@@ -1,5 +1,7 @@
 package com.n26.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 /**
  * @author neil
  *
@@ -10,8 +12,10 @@ public class TransactionSummary {
 	private double avg;
 	
 	private int count;
-	private double max;
-	private double min;
+	private double max=-1;
+	private double min =-1;
+	
+	@JsonIgnore
 	private long highestTimeStamp;
 	
 	public double getSum() {
@@ -22,13 +26,12 @@ public class TransactionSummary {
 		this.sum = sum;
 	}
 	
-	public double getAvg() {
-		if(count!=0 ) {
+	public double getAvg() 
+	{
+		if(count!=0 ) 
+		{
 			avg=sum/count;
 		}
-		else {
-			avg=0;
-		}		
 		return avg;
 	}
 
@@ -67,6 +70,14 @@ public class TransactionSummary {
 		count=0;
 		
 	}
+
+	@Override
+	public String toString() {
+		return "TransactionSummary [sum=" + sum + ", avg=" + avg + ", count=" + count + ", max=" + max + ", min=" + min
+				+ ", highestTimeStamp=" + highestTimeStamp + "]";
+	}
+	
+	
 	
 	
 }

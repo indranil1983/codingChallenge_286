@@ -21,12 +21,19 @@ public class TransactionControllerAdvice {
 	
     @ResponseStatus(NO_CONTENT)
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public void handleMethodArgumentNotValidException() {
+    public void handleMethodArgumentNotValidException(Exception e) {
+    	logger.error(e.getMessage());
     }
 
     @ResponseStatus(NO_CONTENT)
     @ExceptionHandler(InvalidTimestampException.class)
     public void handleInvalidTimestampException(Exception e) {
+    	logger.error(e.getMessage());
+    }
+    
+    @ResponseStatus(NO_CONTENT)
+    @ExceptionHandler(Exception.class)
+    public void handleException(Exception e) {
     	logger.error(e);
     }
 }

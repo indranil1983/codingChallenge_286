@@ -1,5 +1,7 @@
 package com.n26.model;
 
+import javax.validation.constraints.NotNull;
+
 public class TransactionRequest{
 
 	public TransactionRequest(double amount, long timestamp) {
@@ -12,8 +14,11 @@ public class TransactionRequest{
 		
 	}
 	
-	private double amount;
-	private long timestamp;
+	@NotNull
+	private Double amount;
+	
+	@NotNull
+	private Long timestamp;
 	
 	
 	public double getAmount() {
