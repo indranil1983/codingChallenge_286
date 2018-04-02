@@ -17,13 +17,10 @@ import com.n26.model.TransactionSummary;
 @Component
 public class StatisticsBean {
 
-	Logger logger = LogManager.getLogger(TransactionServiceImpl.class);
-	
-	
+	Logger logger = LogManager.getLogger(TransactionServiceImpl.class);	
 	
 	private static TransactionSummary[][] arrTransactionSummary;
 	public static long appStartTime;
-	public static long[] highestValueInEachArray;
 	
 	@PostConstruct
 	public void init() {
@@ -34,6 +31,18 @@ public class StatisticsBean {
 	
 	public TransactionSummary[][] getTransactionArray(){
 		return arrTransactionSummary;
+	}
+	
+	public TransactionSummary getTransactionArray(int[] pointer){
+		TransactionSummary objTransactionSummary = getTransactionArray()[pointer[0]][pointer[1]];
+		if (objTransactionSummary == null) {
+			synchronized(this){
+				if (objTransactionSummary == null) 
+					objTransactionSummary = new TransactionSummary();
+			} 
+		}
+		
+		return objTransactionSummary;
 	}
 	
 	@VisibleForTesting

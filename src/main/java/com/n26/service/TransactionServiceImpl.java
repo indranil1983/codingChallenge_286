@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.n26.constant.TransactionConstant;
 import com.n26.exceptions.InvalidTimestampException;
 import com.n26.model.TransactionRequest;
 import com.n26.model.TransactionSummary;
@@ -35,7 +36,7 @@ public class TransactionServiceImpl implements ITransactionService
 		TransactionSummary finalTransactionSummary = new TransactionSummary();
 		long currentTime = fetchCurrentTimeStamp();
 		int statisticsStartTime=calculateDifferenceInTimeFromAppStartTime(currentTime);
-		int statisticsEndTime=(int)statisticsStartTime-59999;
+		int statisticsEndTime=(int)statisticsStartTime-(TransactionConstant.MINUTE_IN_MILLISEC-1);
 		if(statisticsEndTime<0) statisticsEndTime=0;
 		
 		int finalCount=0;
@@ -51,7 +52,7 @@ public class TransactionServiceImpl implements ITransactionService
 			{				
 				//calculateSummaryInArray(finalTransactionSummary, objTrans);
 				long highestTsInSummary  = objTrans.getHighestTimeStamp();
-				if(((currentTime-highestTsInSummary)<=60000)) //in case the difference is greater than 60000, then the summary is older than a minute so discard
+				if(((currentTime-highestTsInSummary)<=TransactionConstant.MINUTE_IN_MILLISEC)) //in case the difference is greater than 60000, then the summary is older than a minute so discard
 				{ 
 					finalSum += objTrans.getSum();
 					finalCount += objTrans.getCount();				
@@ -87,37 +88,31 @@ public class TransactionServiceImpl implements ITransactionService
 		int[] pointer = calculate2dArrayPointer(diffFromFirstInsert);
 		
 		//now retrieve the summary obj located at that pointer.
-		TransactionSummary objTransactionSummary = statbean.getTransactionArray()[pointer[0]][pointer[1]];
+		TransactionSummary objTransactionSummary = statbean.getTransactionArray(pointer);
 		
 		
 		//update the summary with highest timestamp value so later we can understand which timestamp was that array element allocated to.
-		objTransactionSummary = updateHighestTsValueInTransactionSummary(transactionRequest.getTimestamp(),objTransactionSummary,currentTimeStamp);		
+		updateHighestTsValueInTransactionSummary(transactionRequest.getTimestamp(),objTransactionSummary,currentTimeStamp);		
 		
 		calculateSummaryInArray(objTransactionSummary, transactionRequest);
 		statbean.getTransactionArray()[pointer[0]][pointer[1]]=objTransactionSummary;	
 	}
 	
 	
-	private TransactionSummary updateHighestTsValueInTransactionSummary(long timeStamp,TransactionSummary objTransactionSummary,long currentTimeStamp) {
-		
-		if(objTransactionSummary==null) {
-			objTransactionSummary = new TransactionSummary();
-			objTransactionSummary.setHighestTimeStamp(timeStamp);
-		}
-		else 
-		{
-			long currentHighestTsInSummary = objTransactionSummary.getHighestTimeStamp();
-			if((currentTimeStamp-currentHighestTsInSummary)>60000){
-				objTransactionSummary.resetAll();
+	private void updateHighestTsValueInTransactionSummary(long timeStamp,TransactionSummary objTransactionSummary,long currentTimeStamp) {
+		synchronized (objTransactionSummary) {
+			if (objTransactionSummary.getHighestTimeStamp() == 0) {
 				objTransactionSummary.setHighestTimeStamp(timeStamp);
+			} else {
+				long currentHighestTsInSummary = objTransactionSummary.getHighestTimeStamp();
+				if ((currentTimeStamp - currentHighestTsInSummary) > TransactionConstant.MINUTE_IN_MILLISEC) {
+					objTransactionSummary.resetAll();
+					objTransactionSummary.setHighestTimeStamp(timeStamp);
+				} else if (timeStamp > currentHighestTsInSummary) {
+					objTransactionSummary.setHighestTimeStamp(timeStamp);
+				}
 			}
-			else if(timeStamp>currentHighestTsInSummary) {
-				objTransactionSummary.setHighestTimeStamp(timeStamp);
-			}	
-		}
-		
-		return objTransactionSummary;
-			
+		}			
 	}
 
 
@@ -170,12 +165,12 @@ public class TransactionServiceImpl implements ITransactionService
 	private int[] calculate2dArrayPointer(int diffFromAppStartTime){
 		
 		//int intDiff=(int)diffFromFirstInsert;
-		int minute = diffFromAppStartTime/60000;
+		int minute = diffFromAppStartTime/TransactionConstant.MINUTE_IN_MILLISEC;
 		if(minute>4) {
 			//this will move the pointer count start from 0 as we are mapping the timestamp in 5 blocks of array.
 			minute=minute%5;  //so if minute calculation is 12 then it will point to array number 2.
 		}
-		int millisec=diffFromAppStartTime%60000; // so here we are converting any timestamp to a block of 2d array with height 5 and width 60k
+		int millisec=diffFromAppStartTime%TransactionConstant.MINUTE_IN_MILLISEC; // so here we are converting any timestamp to a block of 2d array with height 5 and width 60k
 		int[] pointer = {minute,millisec};
 		
 		return pointer;
